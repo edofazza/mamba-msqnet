@@ -33,8 +33,6 @@ def main(args):
     config['path_dataset'] = '.'  # MODIFIED, substituted get_config
     if args.dataset == "animalkingdom":
         dataset = 'AnimalKingdom'
-    elif args.dataset == "ava":
-        dataset = 'AVA'
     else:
         dataset = string.capwords(args.dataset)
     path_data = os.path.join(config['path_dataset'], dataset)
@@ -55,26 +53,17 @@ def main(args):
     val_loader = manager.get_test_loader(val_transform)
     print("[INFO] Test size:", str(len(val_loader.dataset)), flush=True)
 
-    # criterion or loss
-    import torch.nn as nn
-    if args.dataset in ['animalkingdom', 'charades', 'hockey', 'volleyball']:
-        criterion = nn.BCEWithLogitsLoss()
-    elif args.dataset == 'thumos14':
-        criterion = nn.CrossEntropyLoss()
-
     # evaluation metric
-    if args.dataset in ['animalkingdom', 'charades']:
+    if args.dataset in ['animalkingdom']:
         from torchmetrics.classification import MultilabelAveragePrecision
         eval_metric = MultilabelAveragePrecision(num_labels=num_classes, average='micro')
         eval_metric_string = 'Multilabel Average Precision'
-    elif args.dataset in ['hockey', 'volleyball']:
-        from torchmetrics.classification import MultilabelAccuracy
-        eval_metric = MultilabelAccuracy(num_labels=num_classes, average='micro')
-        eval_metric_string = 'Multilabel Accuracy'
-    elif args.dataset == 'thumos14':
-        from torchmetrics.classification import MulticlassAccuracy
-        eval_metric = MulticlassAccuracy(num_classes=num_classes, average='micro')
-        eval_metric_string = 'Multiclass Accuracy'
+        # criterion or loss
+        import torch.nn as nn
+        criterion = nn.BCEWithLogitsLoss()
+    else:
+        print('[INFO] No such dataset:', args.dataset)
+        return
 
     # model
     model_args = (train_loader, val_loader, criterion, eval_metric, class_list, args.test_every, args.distributed, device)
@@ -85,19 +74,9 @@ def main(args):
         flops = FlopCountAnalysis(executor.model, torch.rand(1, 16, 3, 224, 224).to('cuda', non_blocking=True))
         print(time.time() - s)
         print(flop_count_table(flops, max_depth=1))"""
-    elif args.model == 'videomambaclipinitvideoguide':
-        from models.VideoMambaCLIPInitVideoGuide import VideoMambaCLIPInitVideoGuideExecutor
-        executor = VideoMambaCLIPInitVideoGuideExecutor(*model_args)
-        """s = time.time()
-        flops = FlopCountAnalysis(executor.model, torch.rand(1, 16, 3, 224, 224).to('cuda', non_blocking=True))
-        print(time.time() - s)
-        print(flop_count_table(flops, max_depth=1))"""
-    elif args.model == 'videomambatwoways':
-        from models.videomambatwoways import VideoMambaTwoWaysExecutor
-        executor = VideoMambaTwoWaysExecutor(*model_args)
     else:
-        from models.VideoMambaCLIPInitVideoGuideMamba import TimeSformerCLIPInitVideoGuideExecutor
-        executor = TimeSformerCLIPInitVideoGuideExecutor(*model_args)
+        print('[INFO] No such model:', args.model)
+        return
 
     executor.train(args.epoch_start, args.epochs)
     eval = executor.test()
