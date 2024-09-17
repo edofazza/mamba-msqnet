@@ -6,5 +6,15 @@
 ```bash
 pip install -r requirements.txt
 ```
+Then, for using correctly VideoMamba (after downloading it form the GitHub repo) you must:
 
-And to run the code simply run the [`main.py`](http://main.py) file.
+```bash
+pip install -e VideoMamba/causal-conv1d
+pip install -e VideoMamba/mamba
+```
+
+To run the code simply fire the [`main.py`](http://main.py) file.
+
+```bash
+python mamba-MSQNet/main.py --dataset='animalkingdom' --model='videomambaclipinitvideoguidemultilayermamba' --total_length=16 --num_workers=2 --batch_size=8 --videomamba_version='m' 
+```

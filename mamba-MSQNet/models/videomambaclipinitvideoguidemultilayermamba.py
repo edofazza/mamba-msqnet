@@ -7,9 +7,15 @@ import torch.nn.functional as F
 from utils.utils import AverageMeter
 from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.optim.lr_scheduler import CosineAnnealingWarmRestarts
+from torchmetrics.classification import MultilabelConfusionMatrix
+import numpy as np
+
 from transformers import TimesformerModel, CLIPTokenizer, CLIPTextModel, CLIPVisionModel, logging
-from .videomamba import videomamba_middle
+from .videomamba import videomamba_middle, videomamba_small, videomamba_tiny
 from functools import partial
+import matplotlib.pyplot as plt
+import seaborn as sns
+
 
 from mamba_ssm.modules.mamba_simple import Mamba, Block
 
@@ -50,14 +56,26 @@ def create_block(
 
 
 class VideoMambaCLIPInitVideoGuideMultiLayerMamba(nn.Module):
-    def __init__(self, class_embed, num_frames):
+
+    def __init__(self, class_embed, num_frames, version: str = 'm'):
         super().__init__()
+        assert version in ['m', 's', 't'], 'version must be m or s or t'
         self.num_classes, self.embed_dim = class_embed.shape
         #print(class_embed.shape, flush=True)
-        self.backbone = videomamba_middle(num_frames=num_frames, pretrained=True)
-        # In the wrong frozen I set to not-trainable layers here and not in the training code below
-        # then I wrongly set them to not-trainable again after 50 epochs.
-        self.linear1 = nn.Linear(in_features=576, out_features=self.embed_dim, bias=False) # self.backbone.config.hidden_size
+        if version == 'm':
+            self.backbone = videomamba_middle(num_frames=num_frames, pretrained=True)
+        elif version == 's':
+            self.backbone = videomamba_small(num_frames=num_frames, pretrained=True)
+        elif version == 't':
+            self.backbone = videomamba_tiny(num_frames=num_frames, pretrained=True)
+
+        if version == 'm':  # self.backbone.config.hidden_size # M 576 S 384 T 192
+            self.linear1 = nn.Linear(in_features=576, out_features=self.embed_dim, bias=False)
+        elif version == 's':
+            self.linear1 = nn.Linear(in_features=384, out_features=self.embed_dim, bias=False)
+        elif version == 't':
+            self.linear1 = nn.Linear(in_features=192, out_features=self.embed_dim, bias=False)
+
         self.pos_encod = PositionalEncoding(d_model=self.embed_dim)
         self.image_model = CLIPVisionModel.from_pretrained("openai/clip-vit-base-patch16")
         self.linear2 = nn.Linear(in_features=768 + self.embed_dim,
@@ -72,7 +90,7 @@ class VideoMambaCLIPInitVideoGuideMultiLayerMamba(nn.Module):
                 for i in range(16)
             ]
         )
-        self.linear3 = nn.Linear(in_features=173, out_features=self.num_classes, bias=False) # AK 156 Charades 173
+        self.linear3 = nn.Linear(in_features=156, out_features=self.num_classes, bias=False)
         self.group_linear = GroupWiseLinear(self.num_classes, self.embed_dim, bias=True)
 
     def forward(self, images):
@@ -107,8 +125,9 @@ class VideoMambaCLIPInitVideoGuideMultiLayerMamba(nn.Module):
 
 
 class VideoMambaCLIPInitVideoGuideMultiLayerMambaExecutor:
+
     def __init__(self, train_loader, test_loader, criterion, eval_metric, class_list, test_every, distributed,
-                 gpu_id) -> None:
+                 gpu_id, version: str = 'm') -> None:
         super().__init__()
         self.train_loader = train_loader
         self.test_loader = test_loader
@@ -121,7 +140,7 @@ class VideoMambaCLIPInitVideoGuideMultiLayerMambaExecutor:
         num_frames = self.train_loader.dataset[0][0].shape[0]
         logging.set_verbosity_error()
         class_embed = self._get_text_features(class_list)
-        model = VideoMambaCLIPInitVideoGuideMultiLayerMamba(class_embed, num_frames).to(gpu_id)
+        model = VideoMambaCLIPInitVideoGuideMultiLayerMamba(class_embed, num_frames, version).to(gpu_id)
         if distributed:
             self.model = DDP(model, device_ids=[gpu_id])
         else:
@@ -211,28 +230,11 @@ class VideoMambaCLIPInitVideoGuideMultiLayerMambaExecutor:
         return eval_meter.avg
 
     def save(self, file_path="./checkpoint.pth"):
-        backbone_state_dict = self.model.backbone.state_dict()
-        linear_state_dict = self.model.linear.state_dict()
-        transformer_state_dict = self.model.transformer.state_dict()
-        query_embed_state_dict = self.model.query_embed.state_dict()
-        group_linear_state_dict = self.model.fc.state_dict()
-        optimizer_state_dict = self.optimizer.state_dict()
-        torch.save({"backbone": backbone_state_dict,
-                    "linear": linear_state_dict,
-                    "transformer": transformer_state_dict,
-                    "query_embed": query_embed_state_dict,
-                    "group_linear": group_linear_state_dict,
-                    "optimizer": optimizer_state_dict},
-                   file_path)
+        torch.save(self.model.state_dict(), file_path + '.pth')
+        torch.save(self.optimizer.state_dict(), file_path + '_optimizer.pth')
 
     def load(self, file_path):
-        checkpoint = torch.load(file_path)
-        self.model.backbone.load_state_dict(checkpoint["backbone"])
-        self.model.linear.load_state_dict(checkpoint["linear"])
-        self.model.transformer.load_state_dict(checkpoint["transformer"])
-        self.model.query_embed.load_state_dict(checkpoint["query_embed"])
-        self.model.group_linear.load_state_dict(checkpoint["group_linear"])
-        self.optimizer.load_state_dict(checkpoint["optimizer"])
+        self.model.load_state_dict(torch.load(file_path))
 
 
 class PositionalEncoding(nn.Module):

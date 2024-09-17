@@ -66,7 +66,8 @@ def main(args):
         return
 
     # model
-    model_args = (train_loader, val_loader, criterion, eval_metric, class_list, args.test_every, args.distributed, device)
+    model_args = (train_loader, val_loader, criterion, eval_metric, class_list, args.test_every, args.distributed,
+                  device, args.videomamba_version)
     if args.model == 'videomambaclipinitvideoguidemultilayermamba':
         from models.videomambaclipinitvideoguidemultilayermamba import VideoMambaCLIPInitVideoGuideMultiLayerMambaExecutor
         executor = VideoMambaCLIPInitVideoGuideMultiLayerMambaExecutor(*model_args)
@@ -107,6 +108,7 @@ if __name__ == '__main__':
     parser.add_argument("--zero_shot", default=False, type=bool, help="Zero-shot or Fully supervised")
     parser.add_argument("--split", default=1, type=int, help="Split 1: 50:50, Split 2: 75:25")
     parser.add_argument("--train", default=False, type=bool, help="train or test")
+    parser.add_argument("--videomamba_version", default='m', type=str, help="m / s / t")
     args = parser.parse_args()
 
     main(args)
