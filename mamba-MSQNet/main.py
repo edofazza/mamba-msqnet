@@ -33,6 +33,8 @@ def main(args):
     config['path_dataset'] = '.'  # MODIFIED, substituted get_config
     if args.dataset == "animalkingdom":
         dataset = 'AnimalKingdom'
+    elif args.dataset == "baboonland":
+        dataset = 'baboonland'
     else:
         dataset = string.capwords(args.dataset)
     path_data = os.path.join(config['path_dataset'], dataset)
@@ -54,7 +56,7 @@ def main(args):
     print("[INFO] Test size:", str(len(val_loader.dataset)), flush=True)
 
     # evaluation metric
-    if args.dataset in ['animalkingdom']:
+    if args.dataset in ['animalkingdom', 'baboonland']:
         from torchmetrics.classification import MultilabelAveragePrecision
         eval_metric = MultilabelAveragePrecision(num_labels=num_classes, average='micro')
         eval_metric_string = 'Multilabel Average Precision'
@@ -81,7 +83,7 @@ def main(args):
 
     executor.train(args.epoch_start, args.epochs)
     eval = executor.test()
-    torch.save(executor.model.state_dict(), 'mamba_msqnet.pth')
+    torch.save(executor.model.state_dict(), args.save_path)
     print("[INFO] " + eval_metric_string + ": {:.2f}".format(eval * 100), flush=True)
 
 
@@ -93,7 +95,7 @@ if __name__ == '__main__':
     parser.add_argument("--epoch_start", default=0, type=int, help="Epoch to start learning from, used when resuming")
     parser.add_argument("--epochs", default=100, type=int, help="Total number of epochs")
     parser.add_argument("--dataset", default="volleyball",
-                        help="Dataset: volleyball, hockey, charades, ava, animalkingdom")
+                        help="Dataset: animalkingdom, baboonland")
     parser.add_argument("--model", default="convit", help="Model: convit, query2label")
     parser.add_argument("--total_length", default=10, type=int, help="Number of frames in a video")
     parser.add_argument("--batch_size", default=32, type=int, help="Size of the mini-batch")
@@ -109,6 +111,7 @@ if __name__ == '__main__':
     parser.add_argument("--split", default=1, type=int, help="Split 1: 50:50, Split 2: 75:25")
     parser.add_argument("--train", default=False, type=bool, help="train or test")
     parser.add_argument("--videomamba_version", default='m', type=str, help="m / s / t")
+    parser.add_argument("--save_path", default="mamba_msqnet.pth", type=str)
     args = parser.parse_args()
 
     main(args)
