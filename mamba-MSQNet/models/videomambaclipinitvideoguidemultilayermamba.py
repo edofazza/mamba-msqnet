@@ -90,7 +90,7 @@ class VideoMambaCLIPInitVideoGuideMultiLayerMamba(nn.Module):
                 for i in range(16)
             ]
         )
-        self.linear3 = nn.Linear(in_features=156, out_features=self.num_classes, bias=False)
+        self.linear3 = nn.Linear(in_features=156, out_features=self.num_classes, bias=False) # AK 156 BaboonLand 29
         self.group_linear = GroupWiseLinear(self.num_classes, self.embed_dim, bias=True)
 
     def forward(self, images):

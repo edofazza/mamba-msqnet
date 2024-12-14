@@ -18,3 +18,6 @@ To run the code simply fire the [`main.py`](http://main.py) file.
 ```bash
 python mamba-MSQNet/main.py --dataset='animalkingdom' --model='videomambaclipinitvideoguidemultilayermamba' --total_length=16 --num_workers=2 --batch_size=8 --videomamba_version='m' 
 ```
+
+Note: in case of using BaboonLand, change in_features (line 93, videomambaclipvideoguidemultilayermamba.py) with 29, as indicated in the comment.
+
