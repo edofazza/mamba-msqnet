@@ -21,3 +21,14 @@ python mamba-MSQNet/main.py --dataset='animalkingdom' --model='videomambaclipini
 
 Note: in case of using BaboonLand, change in_features (line 93, videomambaclipvideoguidemultilayermamba.py) with 29, as indicated in the comment.
 
+To cite our article:
+```
+@article{fazzari2024selective,
+  title={Selective state models are what you need for animal action recognition},
+  author={Fazzari, Edoardo and Romano, Donato and Falchi, Fabrizio and Stefanini, Cesare},
+  journal={Ecological Informatics},
+  pages={102955},
+  year={2024},
+  publisher={Elsevier}
+}
+```
