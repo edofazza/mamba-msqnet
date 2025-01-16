@@ -7,6 +7,7 @@ from utils.utils import read_config
 #from fvcore.nn import FlopCountAnalysis
 #from fvcore.nn import flop_count_table
 import time
+import torch.nn as nn
 
 
 def main(args):
@@ -35,6 +36,8 @@ def main(args):
         dataset = 'AnimalKingdom'
     elif args.dataset == "baboonland":
         dataset = 'baboonland'
+    elif args.dataset == "mammalnet":
+        dataset = 'mammalnet'
     else:
         dataset = string.capwords(args.dataset)
     path_data = os.path.join(config['path_dataset'], dataset)
@@ -60,9 +63,14 @@ def main(args):
         from torchmetrics.classification import MultilabelAveragePrecision
         eval_metric = MultilabelAveragePrecision(num_labels=num_classes, average='micro')
         eval_metric_string = 'Multilabel Average Precision'
-        # criterion or loss
-        import torch.nn as nn
+        # loss
         criterion = nn.BCEWithLogitsLoss()
+    elif args.dataset in ['mammalnet']:
+        from torchmetrics.classification import MulticlassAccuracy
+        eval_metric = MulticlassAccuracy(num_classes=num_classes, average='micro')
+        eval_metric_string = 'Multiclass Accuracy'
+        # loss
+        criterion = nn.CrossEntropyLoss()
     else:
         print('[INFO] No such dataset:', args.dataset)
         return
@@ -94,8 +102,8 @@ if __name__ == '__main__':
     parser.add_argument("--seed", default=1, type=int, help="Seed for Numpy and PyTorch. Default: -1 (None)")
     parser.add_argument("--epoch_start", default=0, type=int, help="Epoch to start learning from, used when resuming")
     parser.add_argument("--epochs", default=100, type=int, help="Total number of epochs")
-    parser.add_argument("--dataset", default="volleyball",
-                        help="Dataset: animalkingdom, baboonland")
+    parser.add_argument("--dataset", default="animalkingdom",
+                        help="Dataset: animalkingdom, baboonland, mammalnet")
     parser.add_argument("--model", default="convit", help="Model: convit, query2label")
     parser.add_argument("--total_length", default=10, type=int, help="Number of frames in a video")
     parser.add_argument("--batch_size", default=32, type=int, help="Size of the mini-batch")

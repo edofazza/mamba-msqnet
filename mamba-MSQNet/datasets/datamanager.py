@@ -2,7 +2,7 @@ import itertools
 
 from .transforms_ss import *
 from torchvision.transforms import Compose
-from .datasets import AnimalKingdom, Charades, Hockey, Thumos14, Volleyball, BaboonLandDataset
+from .datasets import AnimalKingdom, MammalNet, BaboonLandDataset
 from torch.utils.data import Dataset, DataLoader, RandomSampler, DistributedSampler
 import numpy as np
 import torch
@@ -49,7 +49,7 @@ class DataManager():
         self.distributed = args.distributed
 
     def _check(self, ):
-        datasets_list = ["animalkingdom", "baboonland"]
+        datasets_list = ["animalkingdom", "baboonland", 'mammalnet']
         if (self.dataset not in datasets_list):
             raise Exception("[ERROR] The dataset " + str(self.dataset) + " is not supported!")
 
@@ -59,6 +59,8 @@ class DataManager():
             return 140
         elif self.dataset == "baboonland":
             return 13
+        elif (self.dataset == "mammalnet"):
+            return 12
 
     def get_act_dict(self, ):
         self._check()
@@ -100,11 +102,16 @@ class DataManager():
         baboonland_dict = {"Walking/Running": 0, "Sitting/Standing": 1, "Fighting/Playing": 2, "Self-Grooming": 3,
                            "Being Groomed": 4, "Grooming Somebody": 5, "Mutual Grooming": 6, "Infant-Carrying": 7,
                            "Foraging": 8, "Drinking": 9, "Mounting": 10, "Sleeping": 11, "Occluded": 12}
-
+        mammalnet_dict = {"drinks water": 0, "sleeps": 1, "eats food": 2, "mates with other animals": 3,
+                          "nurses or breastfeeds its baby": 4, "pees": 5, "grooms/cleans itself or other animal": 6,
+                          "poops": 7, "fights against other animals": 8, "hunts other animals": 9, "vomits": 10,
+                          "gives birth to a baby": 11}
         if self.dataset == "animalkingdom":
             return animalkingdom_dict
         elif self.dataset == "baboonland":
             return baboonland_dict
+        elif (self.dataset == "mammalnet"):
+            return mammalnet_dict
 
 
     def get_train_transforms(self, ):
@@ -209,6 +216,13 @@ class DataManager():
                                            mode='train')
             sampler = RandomSampler(train_data, num_samples=2500)
             shuffle = False
+        elif (self.dataset == 'mammalnet'):
+            train_data = MammalNet(self.path, act_dict, total_length=self.total_length,
+                                   transform=train_transform,
+                                   random_shift=False,
+                                   mode='train')
+            sampler = RandomSampler(train_data, num_samples=2500)
+            shuffle = False
         else:
             raise Exception("[ERROR] The dataset " + str(self.dataset) + " is not supported!")
 
@@ -241,6 +255,9 @@ class DataManager():
         if (self.dataset == 'baboonland'):
             test_data = BaboonLandDataset(self.path, act_dict, total_length=self.total_length, transform=test_transform,
                                           mode='val')
+        elif (self.dataset == 'mammalnet'):
+            test_data = MammalNet(self.path, act_dict, total_length=self.total_length, transform=test_transform,
+                                  mode='test')
         else:
             raise Exception("[ERROR] The dataset " + str(self.dataset) + " is not supported!")
         sampler = DistributedSampler(test_data, shuffle=False) if self.distributed else None
